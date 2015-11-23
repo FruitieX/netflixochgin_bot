@@ -20,7 +20,7 @@ tg.on('message', function(msg) {
         tg.sendMessage(msg.chat.id, 'https://docs.google.com/spreadsheets/d/' +
             config.spreadsheetKey);
     } else if (!msg.text.indexOf('/vote')) {
-        votes[msg.chat.id] = parseInt(msg.text.split(' ')[1]);
+        votes[msg.from.id] = parseInt(msg.text.split(' ')[1]);
     } else if (!msg.text.indexOf('/startvote')) {
         if (activeVote) {
             return tg.sendMessage(msg.chat.id, 'Röstning redan aktiv, använd `/endvote` för att stoppa nuvarande röstning!');
