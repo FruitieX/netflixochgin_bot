@@ -1,0 +1,4 @@
+module.exports = {
+    spreadsheetKey: '<spreadsheet key here>',
+    tgToken: '<telegram bot api token here>'
+};
