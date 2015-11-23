@@ -20,7 +20,19 @@ tg.on('message', function(msg) {
         tg.sendMessage(msg.chat.id, 'https://docs.google.com/spreadsheets/d/' +
             config.spreadsheetKey);
     } else if (!msg.text.indexOf('/vote')) {
-        votes[msg.from.id] = parseInt(msg.text.split(' ')[1]);
+        var userVotes = msg.text.split(' ');
+
+        // shift '/vote' out
+        userVotes.shift();
+
+        _.map(userVotes, function(vote) {
+            return parseInt(vote);
+        });
+
+        // stop multiple votes for one movie
+        userVotes = _.uniq(userVotes);
+
+        votes[msg.from.id] = userVotes;
     } else if (!msg.text.indexOf('/startvote')) {
         if (activeVote) {
             return tg.sendMessage(msg.chat.id, 'Röstning redan aktiv, använd `/endvote` för att stoppa nuvarande röstning!');
@@ -57,6 +69,8 @@ tg.on('message', function(msg) {
             });
 
             s += '\n*Rösta på din favorit med* `/vote <siffra>`!\n';
+            s += '*Skriv in flera siffror för att rösta på flera filmer* ';
+            s += '(första filmen får mest röster).\n';
             s += '\n*Använd* `/endvote` *då alla har röstat klart.*';
             tg.sendMessage(msg.chat.id, s, {
                 disable_web_page_preview: true,
@@ -69,12 +83,20 @@ tg.on('message', function(msg) {
             return tg.sendMessage(msg.chat.id, 'Röstning ej aktiv, använd /startvote för att starta en röstning!');
         }
 
-        _.keys(votes).forEach(function(vote) {
-            if (!movies[votes[vote]]) {
-                return;
-            }
+        _.keys(votes).forEach(function(userId) {
+            var userVotes = votes[userId];
 
-            movies[votes[vote]].votes++;
+            userVotes.forEach(function(vote, index) {
+                var movieId = parseInt(userVotes[index]);
+                if (!movies[movieId]) {
+                    return;
+                }
+
+                // 1st vote gets 3 pts
+                // 2nd vote gets 2 pts
+                // any more get 1 point
+                movies[movieId].votes += 3 - Math.min(2, index);
+            });
         });
 
         movies = _.shuffle(movies);
