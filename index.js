@@ -35,7 +35,7 @@ tg.on('message', function(msg) {
         votes[msg.from.id] = userVotes;
     } else if (!msg.text.indexOf('/startvote')) {
         if (activeVote) {
-            return tg.sendMessage(msg.chat.id, 'Röstning redan aktiv, använd `/endvote` för att stoppa nuvarande röstning!');
+            return tg.sendMessage(msg.chat.id, 'Röstning redan aktiv, använd /endvote för att stoppa nuvarande röstning!');
         }
 
         movies = [];
