@@ -10,6 +10,7 @@ var votes = {};
 var movies = [];
 
 var activeVote = false;
+var winner = null;
 
 tg.on('message', function(msg) {
     if (!msg.text) {
@@ -33,6 +34,14 @@ tg.on('message', function(msg) {
         userVotes = _.uniq(userVotes);
 
         votes[msg.from.id] = userVotes;
+    } else if (!msg.text.indexOf('/seen')) {
+        /*
+        if (!winner) {
+            return tg.sendMessage(msg.chat.id, 'Ingen film har ännu röstats fram! Använd /startvote för att starta en röstning!');
+        }
+
+        tg.sendMessage
+        */
     } else if (!msg.text.indexOf('/startvote')) {
         if (activeVote) {
             return tg.sendMessage(msg.chat.id, 'Röstning redan aktiv, använd /endvote för att stoppa nuvarande röstning!');
@@ -130,7 +139,7 @@ tg.on('message', function(msg) {
                 return;
             }
 
-            var winner = movies[movies.length - 1];
+            winner = movies[movies.length - 1];
 
             var s = '*Vinnare:* [' + winner.title + '](' + winner.imdb + ')!';
 
