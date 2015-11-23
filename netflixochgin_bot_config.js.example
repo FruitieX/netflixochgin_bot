@@ -1,4 +1,5 @@
 module.exports = {
-    spreadsheetKey: '<spreadsheet key here>',
-    tgToken: '<telegram bot api token here>'
+    spreadsheetKey: '<spreadsheet key here (last part of the google docs URL)>',
+    worksheet: 1,
+    tgToken: '<telegram bot api token here, get it from BotFather>'
 };

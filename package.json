@@ -9,6 +9,8 @@
   "author": "FruitieX",
   "license": "MIT",
   "dependencies": {
+    "google-spreadsheets": "^0.5.0",
+    "lodash": "^3.10.1",
     "node-telegram-bot-api": "^0.17.0"
   }
 }

@@ -1,0 +1,4 @@
+leffor - URL till leffa spreadsheeten
+startvote - Sätt igång en filmröstning
+startvote_with_seen - Inkludera även sedda filmer
+endvote - Avsluta röstning och visa resultat
