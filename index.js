@@ -84,10 +84,23 @@ tg.on('message', function(msg) {
                 tg.sendMessage(msg.chat.id, 'Movies list updated, votes canceled.\n\n' +
                                             'Use /list to see the new list of movies.\n' +
                                             'Use /nominate to nominate movies for voting.\n' +
-                                            'Use /startvote when all nominations are in to start voting!');
+                                            'Use /startvote when all nominations are in to start voting!',
+                {
+                    reply_to_message_id: msg.message_id,
+                    reply_markup: {
+                        hide_keyboard: true,
+                        selective: true
+                    }
+                });
             });
         } else if (!msg.text.indexOf('/reload no')) {
-            tg.sendMessage(msg.chat.id, 'Reload aborted.');
+            tg.sendMessage(msg.chat.id, 'Reload aborted.', {
+                reply_to_message_id: msg.message_id,
+                reply_markup: {
+                    hide_keyboard: true,
+                    selective: true
+                }
+            });
         } else {
             tg.sendMessage(msg.chat.id, 'Reload movies list and cancel current votes?', {
                 reply_to_message_id: msg.message_id,
@@ -152,7 +165,12 @@ tg.on('message', function(msg) {
             } else {
                 return tg.sendMessage(msg.chat.id, '*' + movies[nomIndex].title + '* was nominated for voting!\n\n' +
                 'Use /startvote when all nominations are in to start voting.', {
-                  parse_mode: 'Markdown'
+                    parse_mode: 'Markdown',
+                    reply_to_message_id: msg.message_id,
+                    reply_markup: {
+                        hide_keyboard: true,
+                        selective: true
+                    }
                 });
             }
         } else if (!userNoms[0]) {
@@ -190,8 +208,15 @@ tg.on('message', function(msg) {
                 if (nominateMovie(nomIndex)) {
                     return tg.sendMessage(msg.chat.id, 'Movie with index ' + nomIndex + ' not found!');
                 } else {
-                    return tg.sendMessage(msg.chat.id, movies[nomIndex].title + ' was nominated for voting!\n' +
-                                          'Use /startvote when all nominations are in to start voting.');
+                    return tg.sendMessage(msg.chat.id, '*' + movies[nomIndex].title + '* was nominated for voting!\n' +
+                    'Use /startvote when all nominations are in to start voting.', {
+                        parse_mode: 'Markdown',
+                        reply_to_message_id: msg.message_id,
+                        reply_markup: {
+                            hide_keyboard: true,
+                            selective: true
+                        }
+                    });
                 }
             });
         }
