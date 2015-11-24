@@ -102,6 +102,10 @@ tg.on('message', function(msg) {
             });
         }
     } else if (!msg.text.indexOf('/list')) {
+        if (!movies.length) {
+            return tg.sendMessage(msg.chat.id, 'No movies found, use /reload to reload the list of movies.');
+        }
+
         var s = '*Current movies list:*\n\n';
 
         movies.forEach(function(movie, index) {
