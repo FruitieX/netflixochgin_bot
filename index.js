@@ -88,8 +88,7 @@ tg.on('message', function(msg) {
                 {
                     reply_to_message_id: msg.message_id,
                     reply_markup: {
-                        hide_keyboard: true,
-                        selective: true
+                        hide_keyboard: true // hide everyone's keypads
                     }
                 });
             });
