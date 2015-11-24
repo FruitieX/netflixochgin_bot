@@ -7,16 +7,39 @@ var config = require(process.env.HOME + '/.netflixochgin_bot_config.js');
 var tg = new Telegram(config.tgToken, {polling: true});
 
 var votes = {};
+var nominated = [];
 var movies = [];
 
 var activeVote = false;
+
+var nominateMovie = function(index) {
+    var movie = movies[index];
+
+    if (!movie) {
+        // movie with index not found
+        return 1;
+    }
+
+    // check if movie already was nominated
+    var prevIndex = _.findIndex(nominated, function(nominatedMovie) {
+        return nominatedMovie.title === movie.title;
+    });
+
+    if (prevIndex !== -1) {
+        // movie was already nominated, return success
+        return 0;
+    }
+
+    nominated.push(movie);
+    return 0;
+};
 
 tg.on('message', function(msg) {
     if (!msg.text) {
         return;
     }
 
-    if (!msg.text.indexOf('/leffor')) {
+    if (!msg.text.indexOf('/movies')) {
         tg.sendMessage(msg.chat.id, 'https://docs.google.com/spreadsheets/d/' +
             config.spreadsheetKey);
     } else if (!msg.text.indexOf('/vote')) {
@@ -33,54 +56,171 @@ tg.on('message', function(msg) {
         userVotes = _.uniq(userVotes);
 
         votes[msg.from.id] = userVotes;
-    } else if (!msg.text.indexOf('/startvote')) {
+        tg.sendMessage(msg.chat.id, 'Vote registered.', {
+            reply_to_message_id: msg.message_id
+        });
+    } else if (!msg.text.indexOf('/reload')) {
+        if (!msg.text.indexOf('/reload yes')) {
+            votes = {};
+            nominated = [];
+            movies = [];
+
+            activeVote = false;
+
+            GoogleSpreadsheets.rows({
+                key: config.spreadsheetKey,
+                worksheet: config.worksheet
+            }, function(err, spreadsheet) {
+                spreadsheet.forEach(function(movie) {
+                    movies.push({
+                        title: movie.film,
+                        settvidng: movie.settvidng,
+                        imdb: movie.imdb,
+                        genre: movie.genre,
+                        beskrivning: movie.beskrivning
+                    });
+                });
+
+                tg.sendMessage(msg.chat.id, 'Movies list updated, votes canceled.\n\n' +
+                                            'Use /list to see the new list of movies.\n' +
+                                            'Use /nominate to nominate movies for voting.\n' +
+                                            'Use /startvote when all nominations are in to start voting!');
+            });
+        } else if (!msg.text.indexOf('/reload no')) {
+            tg.sendMessage(msg.chat.id, 'Reload aborted.');
+        } else {
+            tg.sendMessage(msg.chat.id, 'Reload movies list and cancel current votes?', {
+                reply_to_message_id: msg.message_id,
+                reply_markup: {
+                    keyboard: [
+                        ['/reload yes'],
+                        ['/reload no']
+                    ],
+                    selective: true,
+                    one_time_keyboard: true
+                }
+            });
+        }
+    } else if (!msg.text.indexOf('/list')) {
+        var s = '*Current movies list:*\n\n';
+
+        movies.forEach(function(movie, index) {
+            // by default don't include seen movies
+            if (msg.text.indexOf('/list_seen') === -1) {
+                if (_.isString(movie.settvidng)) {
+                    return;
+                }
+            }
+            s += '*' + String(index) + ':* [' + movie.title + '](' + movie.imdb + ')\n(' +
+                (_.isString(movie.genre) ? movie.genre : 'N/A') + ')\n'
+        });
+
+        tg.sendMessage(msg.chat.id, s, {
+            reply_to_message_id: msg.message_id,
+            disable_web_page_preview: true,
+            parse_mode: 'Markdown'
+        });
+    } else if (!msg.text.indexOf('/nominate')) {
         if (activeVote) {
-            return tg.sendMessage(msg.chat.id, 'Röstning redan aktiv, använd /endvote för att stoppa nuvarande röstning!');
+            return tg.sendMessage(msg.chat.id, 'Cannot nominate while voting is active.');
+        }
+        if (!movies.length) {
+            return tg.sendMessage(msg.chat.id, 'No movies found, use /reload to reload the list of movies.');
         }
 
-        movies = [];
-        votes = {};
+        var userNoms = msg.text.split(' ');
 
-        GoogleSpreadsheets.rows({
-            key: config.spreadsheetKey,
-            worksheet: config.worksheet
-        }, function(err, spreadsheet) {
-            var s = '*Röstning påbörjad!*\n\n';
+        // shift '/nominate' out
+        userNoms.shift();
 
-            var index = 0;
-            spreadsheet.forEach(function(movie) {
+        // two syntaxes are supported:
+        // /nominate 42: <Movie title> - nominates movie at index 42
+        // /nominate 1 2 3 - nominates movies at index 1, 2, 3
+        //
+        // additionally, if no arguments are given the user will be presented
+        // with a keypad containing the movies list
+
+        if (_.isString(userNoms[0]) && userNoms[0].indexOf(':') !== -1) {
+            // this handles the former syntax
+            var nomIndex = parseInt(userNoms[0]);
+            if (nominateMovie(nomIndex)) {
+                return tg.sendMessage(msg.chat.id, 'Movie with index ' + nomIndex + ' not found!');
+            } else {
+                return tg.sendMessage(msg.chat.id, '*' + movies[nomIndex].title + '* was nominated for voting!\n\n' +
+                'Use /startvote when all nominations are in to start voting.', {
+                  parse_mode: 'Markdown'
+                });
+            }
+        } else if (!userNoms[0]) {
+            // arguments missing, send movies list
+            var keyboard = [];
+            movies.forEach(function(movie, index) {
                 // by default don't include seen movies
-                if (msg.text.indexOf('/startvote_with_seen') === -1) {
+                if (msg.text.indexOf('/nominate_seen') === -1) {
                     if (_.isString(movie.settvidng)) {
                         return;
                     }
                 }
-                s += '*' + String(index++) + ':* [' + movie.title + '](' + movie.imdb + ')\n(' +
-                    (_.isString(movie.genre) ? movie.genre : 'N/A') + ')\n'
 
-                movies.push({
-                    title: movie.film,
-                    settvidng: movie.settvidng,
-                    imdb: movie.imdb,
-                    genre: movie.genre,
-                    beskrivning: movie.beskrivning,
-                    votes: 0
-                });
+                keyboard.push(['/nominate ' + String(index) + ': ' + movie.title]);
             });
 
-            s += '\n*Rösta på din favorit med* `/vote <siffra>`!\n';
-            s += '*Skriv in flera siffror för att rösta på flera filmer* ';
-            s += '(första filmen får mest röster).\n';
-            s += '\n*Använd* `/endvote` *då alla har röstat klart.*';
-            tg.sendMessage(msg.chat.id, s, {
-                disable_web_page_preview: true,
-                parse_mode: 'Markdown'
+            tg.sendMessage(msg.chat.id, 'Select movie to nominate', {
+                reply_to_message_id: msg.message_id,
+                reply_markup: {
+                    keyboard: keyboard,
+                    selective: true,
+                    one_time_keyboard: true
+                }
             });
-            activeVote = true;
+        } else {
+            // this handles the latter syntax
+            _.map(userNoms, function(index) {
+                return parseInt(index);
+            });
+
+            // get rid of duplicates
+            userNoms = _.uniq(userNoms);
+
+            userNoms.forEach(function(nomIndex) {
+                if (nominateMovie(nomIndex)) {
+                    return tg.sendMessage(msg.chat.id, 'Movie with index ' + nomIndex + ' not found!');
+                } else {
+                    return tg.sendMessage(msg.chat.id, movies[nomIndex].title + ' was nominated for voting!\n' +
+                                          'Use /startvote when all nominations are in to start voting.');
+                }
+            });
+        }
+    } else if (!msg.text.indexOf('/startvote')) {
+        if (activeVote) {
+            return tg.sendMessage(msg.chat.id, 'Voting already active, use /endvote to stop.');
+        }
+        if (nominated.length <= 1) {
+            return tg.sendMessage(msg.chat.id, 'Not enough movies nominated, use /nominate to nominate movies.');
+        }
+
+        var s = '*Voting started!*\n\n';
+
+        nominated.forEach(function(movie, index) {
+            movie.votes = 0;
+
+            s += '*' + String(index) + ':* [' + movie.title + '](' + movie.imdb + ')\n(' +
+                (_.isString(movie.genre) ? movie.genre : 'N/A') + ')\n';
         });
+
+        s += '\n*Vote for your favorite using* `/vote <number>`!\n';
+        s += '*Vote for several movies by typing multiple numbers* ';
+        s += '(the first movie gets the most votes).\n';
+        s += '\n*Use* `/endvote` *once everyone has voted.*';
+
+        tg.sendMessage(msg.chat.id, s, {
+            disable_web_page_preview: true,
+            parse_mode: 'Markdown'
+        });
+        activeVote = true;
     } else if (!msg.text.indexOf('/endvote')) {
         if (!activeVote) {
-            return tg.sendMessage(msg.chat.id, 'Röstning ej aktiv, använd /startvote för att starta en röstning!');
+            return tg.sendMessage(msg.chat.id, 'Voting not active, use /startvote to start.');
         }
 
         _.keys(votes).forEach(function(userId) {
@@ -88,38 +228,38 @@ tg.on('message', function(msg) {
 
             userVotes.forEach(function(vote, index) {
                 var movieId = parseInt(userVotes[index]);
-                if (!movies[movieId]) {
+                if (!nominated[movieId]) {
                     return;
                 }
 
                 // 1st vote gets 3 pts
                 // 2nd vote gets 2 pts
                 // any more get 1 point
-                movies[movieId].votes += 3 - Math.min(2, index);
+                nominated[movieId].votes += 3 - Math.min(2, index);
             });
         });
 
-        movies = _.shuffle(movies);
+        nominated = _.shuffle(nominated);
 
-        movies = _.sortBy(movies, function(movie) {
+        nominated = _.sortBy(nominated, function(movie) {
             return movie.votes;
         });
 
-        var s = '*Resultat:*\n\n';
+        var s = '*Results:*\n\n';
 
         var numVotes = 0;
-        movies.forEach(function(movie) {
+        nominated.forEach(function(movie) {
             if (!movie.votes) {
                 return;
             }
 
             numVotes++;
-            s += '*' + String(movie.votes) + ((movie.votes === 1) ? ' röst' : ' röster') + ':* [' + movie.title + '](' + movie.imdb + ')\n(' +
+            s += '*' + String(movie.votes) + ((movie.votes === 1) ? ' vote' : ' votes') + ':* [' + movie.title + '](' + movie.imdb + ')\n(' +
                 (_.isString(movie.genre) ? movie.genre : 'N/A') + ')\n'
         });
 
         if (!numVotes) {
-            s += '*Inga röster!*';
+            s += '*No votes!*';
         }
 
         tg.sendMessage(msg.chat.id, s, {
@@ -130,9 +270,9 @@ tg.on('message', function(msg) {
                 return;
             }
 
-            var winner = movies[movies.length - 1];
+            var winner = nominated[nominated.length - 1];
 
-            var s = '*Vinnare:* [' + winner.title + '](' + winner.imdb + ')!';
+            var s = '*Winner:* [' + winner.title + '](' + winner.imdb + ')!';
 
             tg.sendMessage(msg.chat.id, s, {
                 parse_mode: 'Markdown'

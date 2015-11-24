@@ -1,4 +1,8 @@
-leffor - URL till leffa spreadsheeten
-startvote - Sätt igång en filmröstning
-startvote_with_seen - Inkludera även sedda filmer
-endvote - Avsluta röstning och visa resultat
+movies - Get URL to spreadsheet
+reload - Reload movies & reset bot
+list - List movies
+list_seen - Include seen
+nominate - Nominate movies for voting
+nominate_seen - Include seen
+startvote - Start voting
+endvote - Stop voting, show results
